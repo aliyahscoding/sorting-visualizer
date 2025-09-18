@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg  # headless matplotlib
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install matplotlib numpy pillow imageio imageio-ffmpeg
+          fi
+          pip install ruff black
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (black)
+        run: black --check .
+
+      - name: Smoke test - insertion (GIF)
+        run: |
+          python src/visualize_sort.py --n 20 --algo insertion --speed 20 --format gif
+          test -f reports/insertion_n20.gif
+
+      - name: Smoke test - selection (GIF)
+        run: |
+          python src/visualize_sort.py --n 20 --algo selection --speed 20 --format gif
+          test -f reports/selection_n20.gif
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: reports/*
+          if-no-files-found: warn
+          retention-days: 7
